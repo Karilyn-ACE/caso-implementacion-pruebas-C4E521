@@ -2,18 +2,18 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\Pivot;
 
-class EstudianteMatriculado extends Model
+class EstudianteMatriculado extends Pivot
 {
-    protected $table = 'estudiante_matriculados';
+    protected $table = 'estudiantes_matriculados';
 
     public $timestamps = false;
 
     protected $fillable = [
         'grupo_id',
-        'estudiante_carne',
+        'estudiante_id',
         'nota',
     ];
 
@@ -34,30 +34,8 @@ class EstudianteMatriculado extends Model
     {
         return $this->belongsTo(
             Estudiante::class,
-            'estudiante_carne',
+            'estudiante_id',
             'carne'
         );
     }
-    
-public function matriculas()
-{
-    return $this->hasMany(
-        EstudianteMatriculado::class,
-        'estudiante_carne',
-        'carne'
-    );
-}
-
-public function grupos()
-{
-    return $this->belongsToMany(
-        Grupo::class,
-        'estudiante_matriculados',
-        'estudiante_carne',
-        'grupo_id',
-        'carne',
-        'id'
-    )->withPivot('nota');
-}
-
 }

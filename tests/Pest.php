@@ -1,7 +1,26 @@
 <?php
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Pest\Mutate\Contracts\MutationTestRunner;
+use Pest\Mutate\Repositories\ConfigurationRepository;
+use Pest\Mutate\Support\Configuration\CliConfiguration;
+use Pest\Support\Container;
 use Tests\TestCase;
+
+Container::getInstance()->get(ConfigurationRepository::class)
+    ->globalConfiguration()
+    ->path('app/Models')
+    ->min(80);
+
+pest()->beforeEach(function (): void {
+    $mutationTestRunner = Container::getInstance()->get(MutationTestRunner::class);
+
+    if (PHP_OS_FAMILY === 'Windows' && $mutationTestRunner->isEnabled()) {
+        $arguments = (new CliConfiguration)->fromArguments($_SERVER['argv']);
+
+        $mutationTestRunner->setOriginalArguments([PHP_BINARY, ...$arguments]);
+    }
+})->in('Feature', 'Unit');
 
 /*
 |--------------------------------------------------------------------------
@@ -15,8 +34,8 @@ use Tests\TestCase;
 */
 
 pest()->extend(TestCase::class)
- // ->use(RefreshDatabase::class)
-    ->in('Feature');
+    ->use(RefreshDatabase::class)
+    ->in('Feature', 'Unit');
 
 /*
 |--------------------------------------------------------------------------

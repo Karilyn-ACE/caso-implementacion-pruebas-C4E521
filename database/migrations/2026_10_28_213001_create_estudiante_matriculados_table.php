@@ -1,3 +1,4 @@
+
 <?php
 
 use Illuminate\Database\Migrations\Migration;
@@ -6,39 +7,31 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
- 
-public function up(): void
-{
-    Schema::create('estudiante_matriculados', function (Blueprint $table) {
-        $table->id();
+    public function up(): void
+    {
+        Schema::create('estudiantes_matriculados', function (Blueprint $table) {
+            $table->id();
 
-        $table->foreignId('grupo_id')
-            ->constrained('grupos');
+            $table->foreignId('grupo_id')
+                ->constrained('grupos');
 
-        $table->string('estudiante_carne');
+            $table->string('estudiante_id');
 
-        $table->foreign('estudiante_carne')
-            ->references('carne')
-            ->on('estudiantes');
+            $table->foreign('estudiante_id')
+                ->references('carne')
+                ->on('estudiantes');
 
-        $table->float('nota')->nullable();
+            $table->float('nota')->nullable();
 
-        $table->unique([
-            'grupo_id',
-            'estudiante_carne'
-        ]);
-    });
-}
+            $table->unique([
+                'grupo_id',
+                'estudiante_id',
+            ]);
+        });
+    }
 
-
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
-        Schema::dropIfExists('estudiante_matriculados');
+        Schema::dropIfExists('estudiantes_matriculados');
     }
 };

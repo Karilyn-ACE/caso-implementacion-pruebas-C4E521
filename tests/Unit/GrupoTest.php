@@ -1,12 +1,13 @@
 
 <?php
 
-use App\Models\Grupo;
 use App\Models\Curso;
 use App\Models\Docente;
 use App\Models\Estudiante;
 use App\Models\EstudianteMatriculado;
+use App\Models\Grupo;
 
+mutates(Curso::class, Docente::class, Estudiante::class, EstudianteMatriculado::class, Grupo::class);
 test('grupo contiene toda su informacion asociada', function () {
 
     // Crear el curso

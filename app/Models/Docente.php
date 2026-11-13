@@ -2,11 +2,16 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Docente extends Model
 {
-     protected $primaryKey = 'codEmpleado';
+    use HasFactory;
+
+    protected $primaryKey = 'codEmpleado';
 
     public $incrementing = false;
 
@@ -19,17 +24,25 @@ class Docente extends Model
     protected $casts = [
         'codEmpleado' => 'integer',
     ];
-    
-public function grupos()
-{
-    return $this->belongsToMany(
-        Grupo::class,
-        'docente_grupo',
-        'docente_codEmpleado',
-        'grupo_id',
-        'codEmpleado',
-        'id'
-    );
-}
 
+    public function grupos(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Grupo::class,
+            'grupo_docente',
+            'docente_id',
+            'grupo_id',
+            'codEmpleado',
+            'id'
+        );
+    }
+
+    public function estudiantes(): HasMany
+    {
+        return $this->hasMany(
+            Estudiante::class,
+            'consejero_id',
+            'codEmpleado'
+        );
+    }
 }

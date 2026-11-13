@@ -2,25 +2,26 @@
 <?php
 
 use App\Models\Curso;
-use App\Models\Grupo;
 use App\Models\Docente;
-use App\Models\EstudianteMatriculado;
+use App\Models\Estudiante;
+use App\Models\Grupo;
+
+mutates(Curso::class, Grupo::class, Docente::class, Estudiante::class);
 
 test('CP-01 grupo con toda su informacion y curso', function () {
-    $curso = new Curso([
+    $curso = Curso::factory()->create([
         'sigla' => 'IF6100',
         'nombreCurso' => 'Análisis y Diseño de Sistemas',
         'creditos' => 4,
     ]);
 
-    $grupo = new Grupo([
+    $grupo = Grupo::factory()->create([
+        'curso_sigla' => $curso->sigla,
         'numeroCiclo' => 2,
         'ano' => 2026,
         'numeroGrupo' => 1,
         'abierto' => true,
     ]);
-
-    $grupo->setRelation('curso', $curso);
 
     expect($grupo->numeroCiclo)->toBe(2)
         ->and($grupo->ano)->toBe(2026)
@@ -31,107 +32,133 @@ test('CP-01 grupo con toda su informacion y curso', function () {
 });
 
 test('CP-02 curso con tres grupos y dos abiertos', function () {
-    $curso = new Curso(['sigla' => 'IF6100']);
-
-    $grupos = collect([
-        new Grupo(['numeroGrupo' => 1, 'abierto' => true]),
-        new Grupo(['numeroGrupo' => 2, 'abierto' => true]),
-        new Grupo(['numeroGrupo' => 3, 'abierto' => false]),
+    $curso = Curso::factory()->create([
+        'sigla' => 'IF6100',
     ]);
 
-    $curso->setRelation('grupos', $grupos);
+    Grupo::factory()->create([
+        'curso_sigla' => $curso->sigla,
+        'numeroGrupo' => 1,
+        'abierto' => true,
+    ]);
 
-    $abiertos = $curso->grupos->filter(
-        fn ($grupo) => $grupo->abierto
-    );
+    Grupo::factory()->create([
+        'curso_sigla' => $curso->sigla,
+        'numeroGrupo' => 2,
+        'abierto' => true,
+    ]);
 
-    expect($curso->grupos)->toHaveCount(3)
+    Grupo::factory()->create([
+        'curso_sigla' => $curso->sigla,
+        'numeroGrupo' => 3,
+        'abierto' => false,
+    ]);
+
+    $grupos = $curso->grupos;
+    $abiertos = $grupos->filter(fn ($grupo) => $grupo->abierto);
+
+    expect($grupos)->toHaveCount(3)
         ->and($abiertos)->toHaveCount(2)
         ->and($abiertos->pluck('numeroGrupo')->sort()->values()->all())
         ->toBe([1, 2]);
 });
 
 test('CP-03 grupo acepta dos docentes', function () {
-    $grupo = new Grupo();
+    $grupo = Grupo::factory()->create();
 
-    $grupo->asignarDocente(1001);
-    $grupo->asignarDocente(1002);
+    $docente1 = Docente::factory()->create([
+        'codEmpleado' => 1001,
+    ]);
 
-    expect($grupo->docentes)->toHaveCount(2)
-        ->and($grupo->docentes->pluck('codEmpleado')->all())
+    $docente2 = Docente::factory()->create([
+        'codEmpleado' => 1002,
+    ]);
+
+    $grupo->asignarDocente($docente1);
+    $grupo->asignarDocente($docente2);
+
+    expect($grupo->docentes()->count())->toBe(2)
+        ->and($grupo->docentes->pluck('codEmpleado')->sort()->values()->all())
         ->toBe([1001, 1002]);
 });
 
 test('CP-04 grupo rechaza tercer docente', function () {
-    $grupo = new Grupo();
+    $grupo = Grupo::factory()->create();
 
-    $grupo->asignarDocente(1001);
-    $grupo->asignarDocente(1002);
+    $docente1 = Docente::factory()->create([
+        'codEmpleado' => 1001,
+    ]);
 
-    expect(fn () => $grupo->asignarDocente(1003))
+    $docente2 = Docente::factory()->create([
+        'codEmpleado' => 1002,
+    ]);
+
+    $docente3 = Docente::factory()->create([
+        'codEmpleado' => 1003,
+    ]);
+
+    $grupo->asignarDocente($docente1);
+    $grupo->asignarDocente($docente2);
+
+    expect(fn () => $grupo->asignarDocente($docente3))
         ->toThrow(DomainException::class);
 
-    expect($grupo->docentes)->toHaveCount(2)
-        ->and($grupo->docentes->contains('codEmpleado', 1003))
+    expect($grupo->docentes()->count())->toBe(2)
+        ->and($grupo->docentes()->where('codEmpleado', 1003)->exists())
         ->toBeFalse();
 });
 
 test('CP-05 grupo con 14 estudiantes no puede abrirse', function () {
-    $grupo = new Grupo([
-        'numeroCiclo' => 2,
-        'ano' => 2026,
+    $grupo = Grupo::factory()->create([
         'numeroGrupo' => 1,
         'abierto' => false,
     ]);
 
-    $grupo->asignarDocente(1001);
+    $docente = Docente::factory()->create([
+        'codEmpleado' => 1001,
+    ]);
 
-    $matriculas = collect();
+    $grupo->asignarDocente($docente);
 
-    for ($i = 1; $i <= 14; $i++) {
-        $matriculas->push(
-            new EstudianteMatriculado(['nota' => null])
-        );
+    $estudiantes = Estudiante::factory()->count(14)->create();
+
+    foreach ($estudiantes as $estudiante) {
+        $grupo->estudiantes()->attach($estudiante->carne);
     }
 
-    $grupo->setRelation('matriculas', $matriculas);
-
-    expect($grupo->puedeAbrirse())->toBeFalse();
+    expect($grupo->docentes()->count())->toBe(1)
+        ->and($grupo->estudiantes()->count())->toBe(14)
+        ->and($grupo->puedeAbrirse())->toBeFalse();
 
     expect(fn () => $grupo->abrir())
         ->toThrow(DomainException::class);
 
-    expect($grupo->abierto)->toBeFalse();
+    expect($grupo->fresh()->abierto)->toBeFalse();
 });
 
-
 test('CP-06 grupo con 15 estudiantes y un docente puede abrirse', function () {
-    $grupo = new Grupo([
-        'numeroCiclo' => 2,
-        'ano' => 2026,
+    $grupo = Grupo::factory()->create([
         'numeroGrupo' => 1,
         'abierto' => false,
     ]);
 
-    $grupo->asignarDocente(1001);
+    $docente = Docente::factory()->create([
+        'codEmpleado' => 1001,
+    ]);
 
-    $matriculas = collect();
+    $grupo->asignarDocente($docente);
 
-    for ($i = 1; $i <= 15; $i++) {
-        $matriculas->push(
-            new EstudianteMatriculado(['nota' => null])
-        );
+    $estudiantes = Estudiante::factory()->count(15)->create();
+
+    foreach ($estudiantes as $estudiante) {
+        $grupo->estudiantes()->attach($estudiante->carne);
     }
-
-    $grupo->setRelation('matriculas', $matriculas);
 
     expect($grupo->puedeAbrirse())->toBeTrue();
 
     $grupo->abrir();
 
-    expect($grupo->abierto)->toBeTrue();
-
-    expect($grupo->docentes)->toHaveCount(1)
-        ->and($grupo->matriculas)->toHaveCount(15);
+    expect($grupo->fresh()->abierto)->toBeTrue()
+        ->and($grupo->docentes()->count())->toBe(1)
+        ->and($grupo->estudiantes()->count())->toBe(15);
 });
-

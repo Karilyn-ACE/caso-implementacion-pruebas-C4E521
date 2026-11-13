@@ -2,11 +2,15 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Curso extends Model
-{  protected $primaryKey = 'sigla';
+{
+    use HasFactory;
+
+    protected $primaryKey = 'sigla';
 
     public $incrementing = false;
 
@@ -20,6 +24,10 @@ class Curso extends Model
 
     public function grupos(): HasMany
     {
-        return $this->hasMany(Grupo::class, 'curso_sigla', 'sigla');
+        return $this->hasMany(
+            Grupo::class,
+            'curso_sigla',
+            'sigla'
+        );
     }
 }

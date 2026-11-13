@@ -2,11 +2,17 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Grupo extends Model
 {
-       protected $fillable = [
+    use HasFactory;
+
+    protected $fillable = [
         'numeroCiclo',
         'ano',
         'numeroGrupo',
@@ -19,97 +25,97 @@ class Grupo extends Model
         'numeroGrupo' => 'integer',
         'abierto' => 'boolean',
     ];
-    
-public function curso()
-{
-    return $this->belongsTo(Curso::class, 'curso_sigla', 'sigla');
-}
 
-public function docentes()
-{
-    return $this->belongsToMany(
-        Docente::class,
-        'docente_grupo',
-        'grupo_id',
-        'docente_codEmpleado',
-        'id',
-        'codEmpleado'
-    );
-}
-
-public function matriculas()
-{
-    return $this->hasMany(
-        EstudianteMatriculado::class,
-        'grupo_id',
-        'id'
-    );
-}
-
-public function estudiantes()
-{
-    return $this->belongsToMany(
-        Estudiante::class,
-        'estudiante_matriculados',
-        'grupo_id',
-        'estudiante_carne',
-        'id',
-        'carne'
-    )->withPivot('nota');
-}
-
-
-
-public function asignarDocente(int $codEmpleado): void
-{
-    $docentes = $this->relationLoaded('docentes')
-        ? $this->getRelation('docentes')
-        : collect();
-
-    if ($docentes->count() >= 2) {
-        throw new \DomainException(
-            'Un grupo no puede tener más de dos docentes.'
+    public function curso(): BelongsTo
+    {
+        return $this->belongsTo(
+            Curso::class,
+            'curso_sigla',
+            'sigla'
         );
     }
 
-    if ($docentes->contains('codEmpleado', $codEmpleado)) {
-        return;
-    }
-
-    $docentes->push(new Docente([
-        'codEmpleado' => $codEmpleado,
-    ]));
-
-    $this->setRelation('docentes', $docentes);
-}
-
-public function puedeAbrirse(): bool
-{
-    $docentes = $this->relationLoaded('docentes')
-        ? $this->getRelation('docentes')->count()
-        : 0;
-
-    $estudiantes = $this->relationLoaded('matriculas')
-        ? $this->getRelation('matriculas')->count()
-        : 0;
-
-    return $docentes >= 1
-        && $docentes <= 2
-        && $estudiantes >= 15;
-}
-
-public function abrir(): void
-{
-    if (!$this->puedeAbrirse()) {
-        throw new \DomainException(
-            'El grupo no cumple los requisitos para abrirse.'
+    public function docentes(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Docente::class,
+            'grupo_docente',
+            'grupo_id',
+            'docente_id',
+            'id',
+            'codEmpleado'
         );
     }
 
-    $this->abierto = true;
-}
+    public function matriculas(): HasMany
+    {
+        return $this->hasMany(
+            EstudianteMatriculado::class,
+            'grupo_id',
+            'id'
+        );
+    }
 
+    public function estudiantes(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Estudiante::class,
+            'estudiantes_matriculados',
+            'grupo_id',
+            'estudiante_id',
+            'id',
+            'carne'
+        )
+            ->using(EstudianteMatriculado::class)
+            ->withPivot('nota');
+    }
 
+    public function asignarDocente(Docente $docente): void
+    {
+        if ($this->docentes()->count() >= 2) {
+            throw new \DomainException(
+                'Un grupo no puede tener más de dos docentes.'
+            );
+        }
 
+        $this->docentes()->attach($docente->codEmpleado);
+    }
 
+    public function puedeAbrirse(): bool
+    {
+        $cantidadDocentes = $this->docentes()->count();
+        $cantidadEstudiantes = $this->estudiantes()->count();
+
+        return $cantidadDocentes >= 1
+            && $cantidadDocentes <= 2
+            && $cantidadEstudiantes >= 15;
+    }
+
+    public function abrir(): void
+    {
+        if (! $this->puedeAbrirse()) {
+            throw new \DomainException(
+                'El grupo no cumple los requisitos para abrirse.'
+            );
+        }
+
+        $this->abierto = true;
+        $this->save();
+    }
+
+    public function registrarNota(
+        Estudiante $estudiante,
+        float $nota
+    ): void {
+        if ($nota < 0 || $nota > 10) {
+            throw new \InvalidArgumentException(
+                'La nota debe estar entre 0 y 10.'
+            );
+        }
+
+        $this->estudiantes()->updateExistingPivot(
+            $estudiante->carne,
+            ['nota' => $nota]
+        );
+    }
 }

@@ -1,3 +1,4 @@
+
 <?php
 
 use Illuminate\Database\Migrations\Migration;
@@ -6,38 +7,30 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
-  
-public function up(): void
-{
-    Schema::create('docente_grupo', function (Blueprint $table) {
-        $table->id();
+    public function up(): void
+    {
+        Schema::create('grupo_docente', function (Blueprint $table) {
+            $table->id();
 
-        $table->unsignedBigInteger('grupo_id');
-        $table->integer('docente_codEmpleado');
+            $table->unsignedBigInteger('grupo_id');
+            $table->integer('docente_id');
 
-        $table->foreign('grupo_id')
-            ->references('id')
-            ->on('grupos')
-            ->cascadeOnDelete();
+            $table->foreign('grupo_id')
+                ->references('id')
+                ->on('grupos')
+                ->cascadeOnDelete();
 
-        $table->foreign('docente_codEmpleado')
-            ->references('codEmpleado')
-            ->on('docentes')
-            ->cascadeOnDelete();
+            $table->foreign('docente_id')
+                ->references('codEmpleado')
+                ->on('docentes')
+                ->cascadeOnDelete();
 
-        $table->unique(['grupo_id', 'docente_codEmpleado']);
-    });
-}
+            $table->unique(['grupo_id', 'docente_id']);
+        });
+    }
 
-
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
-        Schema::dropIfExists('docente_grupo');
+        Schema::dropIfExists('grupo_docente');
     }
 };
